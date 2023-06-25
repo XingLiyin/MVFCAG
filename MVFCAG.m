@@ -1,40 +1,36 @@
-%input 二部图矩阵B 参数lamda
+%input 
+% the anchor graphs B: v*1 cell
+% the initial Y0: n*c matrix, Z0: m*c matrix
+% the regularization parameter lamda
+% the number of classes: num_c
 function [Y,Z,obj,diff,regu,di] = MVFCAG(B,Y0, Z0,lambda,num_c)
 
-num_x = size(B{1,1},1); % 样本数目
-num_v = size(B,1); %视图数目
-h = 1e-2;  % 梯度下降的步长
-th = 1e-3; % 梯度下降结束条件
+num_x = size(B{1,1},1); % number of samples
+num_v = size(B,1); %number of views
+th = 1e-3; % cut-off condition
 maxiter = 200;  
-MAXITER = 200;
-% 初始化
+MAXITER = 200; 
+% initialize
 Y = Y0;
 Z = Z0;
 
-di = zeros(num_v,1); % reweighted系数
-obj = zeros(MAXITER+1,1); % 目标函数值
+di = zeros(num_v,1); % reweighted factors
+obj = zeros(MAXITER+1,1); % values of objective function in each iteration
 for i = 1:num_v
     obj(1) = obj(1) + norm(B{i,1}*Z{i}-Y,'fro');
 end
 obj(1) = obj(1) - lambda*trace(sqrtm(Y'*Y));
 
-% I = eye(num_c);
-% O = zeros((num_x-num_c),num_c);
-% E = [I;O];
-
-
 for iter = 1:MAXITER
     
     % update Y (ReWeighted)
-    Yt1 = Y;  % 初始化
+    Yt1 = Y;  % protect Y
     for t_rw = 1:maxiter
         Yt0 = Yt1; % save
         % calculate d
         for i = 1:num_v
             di(i) = 1.0/(2*norm(B{i,1}*Z{i}-Yt0,'fro'));
         end
-%         [U,~, V] = svd(Y);
-%         D = U*E*V';
         D = Yt0/(sqrtm(Yt0'*Yt0));
         % calculate Y
         Yt1 = zeros(num_x,num_c);
@@ -44,21 +40,18 @@ for iter = 1:MAXITER
         Yt1 = Yt1 + 0.5*lambda*D;
         Yt1 = Yt1/sum(di);
         Yt1 = projectm(Yt1);
-        % 提前截止
+        % early cut-off
         if(norm(Yt1-Yt0,'fro') < th) 
             break;
         end   
     end
-    Y = Yt1; % 更新
+    Y = Yt1; % update
     
     % update Z
     parfor j = 1:num_v
-        
-%         Z{j} = mexUpdateZi(Y,B{j,1},Z{j},j);
-        
         % 坐标下降法
         num_m = size(B{j,1},2);
-        Zi1 = Z{j}'; % initialize 转置为进行更高效的运算
+        Zi1 = Z{j}'; % initialize
         for t_cd = 1:1
             Zi0 = Zi1; % save
             for i = 1:num_m
@@ -73,19 +66,18 @@ for iter = 1:MAXITER
         Z{j} = Zi1'; % update
     end
     
-    % 目标函数值
+    % record value of the objective function
     diff = 0;
     for i = 1:num_v
         diff = diff + norm(B{i,1}*Z{i}-Y,'fro');
     end
     regu = -lambda*trace(sqrtm(Y'*Y));
     obj(iter+1) = diff + regu;
-    % 提前截止
+    % early cut-off
     if(abs(obj(iter+1) - obj(iter))<th)
         fprintf('The Value of Objective Function:%f\n',obj(iter+1))
         break;
-    end
-    
+    end    
     if(iter>30 && abs(obj(iter+1) / obj(iter)-1)<th)
         fprintf('The Value of Objective Function:%f\n',obj(iter+1))
         break;

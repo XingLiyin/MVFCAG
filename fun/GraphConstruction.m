@@ -1,14 +1,14 @@
 function [B] = GraphConstruction(x,num_m,num_k)
-%GRAPHCONSTRUCTION 此处显示有关此函数的摘要
-%x:样本
-%num_m:锚点数目
-%num_k:k近邻
+%GRAPHCONSTRUCTION 
+%x: n*d matrix, each row is a sample
+%num_m: number of anchors
+%num_k: k nearest neighbors
 
 num_x = size(x,1);
-% k均值选取锚点
+% select anchors by k-means
 [~,U] = kmeans(x,num_m);
-% 计算二部图邻接矩阵
-B = zeros(num_x,num_m); %二部图邻接矩阵初始化
+% construct anchor graph
+B = zeros(num_x,num_m);
 for i=1:num_x
     d = zeros(1,num_m);
     for j = 1:num_m
